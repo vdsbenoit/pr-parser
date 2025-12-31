@@ -146,8 +146,9 @@ function parseFilename(filename: string): {
   const normalized = withoutPrefix.replace(/_/g, ' ');
   
   // Check for trailing "before" or "after" (case-insensitive)
-  const beforeMatch = normalized.match(/\s+before\s*$/i);
-  const afterMatch = normalized.match(/\s+after\s*$/i);
+  // Also supports common filename suffixes like "before.png" / "after.jpg"
+  const beforeMatch = normalized.match(/\s+before(?:\.[a-z0-9]+)?\s*$/i);
+  const afterMatch = normalized.match(/\s+after(?:\.[a-z0-9]+)?\s*$/i);
   
   let timing: 'before' | 'after' | 'standalone' = 'standalone';
   let content = normalized.trim();
@@ -155,11 +156,11 @@ function parseFilename(filename: string): {
   if (beforeMatch) {
     timing = 'before';
     // Remove the trailing "before" from content
-    content = normalized.replace(/\s+before\s*$/i, '').trim();
+    content = normalized.replace(/\s+before(?:\.[a-z0-9]+)?\s*$/i, '').trim();
   } else if (afterMatch) {
     timing = 'after';
     // Remove the trailing "after" from content
-    content = normalized.replace(/\s+after\s*$/i, '').trim();
+    content = normalized.replace(/\s+after(?:\.[a-z0-9]+)?\s*$/i, '').trim();
   }
   
   return {
@@ -230,6 +231,93 @@ function parseImages(htmlContent: string): Array<{alt: string, src: string, cate
   return images;
 }
 
+function parseImagesMarkdown(markdownContent: string): Array<{alt: string, src: string, category: string, timing: 'before' | 'after' | 'standalone', order: number}> {
+  const images: Array<{alt: string, src: string, category: string, timing: 'before' | 'after' | 'standalone', order: number}> = [];
+  const content = markdownContent;
+
+  const readUntil = (startIndex: number, predicate: (char: string, index: number) => boolean): { value: string; endIndex: number } | null => {
+    let index = startIndex;
+    while (index < content.length) {
+      const char = content[index];
+      if (predicate(char, index)) {
+        return { value: content.slice(startIndex, index), endIndex: index };
+      }
+      index += 1;
+    }
+    return null;
+  };
+
+  let index = 0;
+  while (index < content.length) {
+    const start = content.indexOf('![', index);
+    if (start === -1) break;
+
+    const altStart = start + 2;
+    const altRead = readUntil(altStart, (char, idx) => char === ']' && content[idx - 1] !== '\\');
+    if (!altRead) {
+      break;
+    }
+    const originalAlt = altRead.value;
+    let cursor = altRead.endIndex + 1;
+
+    while (cursor < content.length && /\s/.test(content[cursor])) cursor += 1;
+    if (content[cursor] !== '(') {
+      index = start + 2;
+      continue;
+    }
+
+    const innerStart = cursor + 1;
+    let depth = 1;
+    cursor += 1;
+    while (cursor < content.length && depth > 0) {
+      const char = content[cursor];
+      if (char === '(') depth += 1;
+      else if (char === ')') depth -= 1;
+      cursor += 1;
+    }
+
+    if (depth !== 0) {
+      index = start + 2;
+      continue;
+    }
+
+    const inner = content.slice(innerStart, cursor - 1).trim();
+    let src = '';
+    if (inner.startsWith('<')) {
+      const close = inner.indexOf('>');
+      if (close > 1) {
+        src = inner.slice(1, close).trim();
+      }
+    } else {
+      src = inner.split(/\s+/)[0] ?? '';
+    }
+
+    if (originalAlt && src) {
+      const parsed = parseFilename(originalAlt);
+      images.push({
+        alt: parsed.formattedAlt,
+        src,
+        category: parsed.formattedAlt,
+        timing: parsed.timing,
+        order: parsed.order,
+      });
+    }
+
+    index = cursor;
+  }
+
+  images.sort((a, b) => a.order - b.order);
+  return images;
+}
+
+function parseImagesFromClipboard(clipboardContent: string): Array<{alt: string, src: string, category: string, timing: 'before' | 'after' | 'standalone', order: number}> {
+  const trimmed = clipboardContent.trim();
+  if (trimmed.startsWith('<img')) {
+    return parseImages(trimmed);
+  }
+  return parseImagesMarkdown(trimmed);
+}
+
 function formatCategoryTitle(category: string): string {
   return category
     .split('_')
@@ -296,4 +384,54 @@ Deno.test("parseImages should handle images without number prefixes", () => {
   assertEquals(images[2].order, 0);
   assertEquals(images[2].alt, "category");
   assertEquals(images[2].timing, "after");
+});
+
+Deno.test("parseFilename - supports before/after with extensions", () => {
+  const before = parseFilename("OTFB card before.png");
+  assertEquals(before.order, 0);
+  assertEquals(before.timing, "before");
+  assertEquals(before.formattedAlt, "OTFB card");
+
+  const after = parseFilename("OTFB card after.JPG");
+  assertEquals(after.order, 0);
+  assertEquals(after.timing, "after");
+  assertEquals(after.formattedAlt, "OTFB card");
+});
+
+Deno.test("parseImagesMarkdown should extract Markdown images", () => {
+  const md = `
+![OTFB card before.png](url1.jpg)
+
+![OTFB card after.png](url2.jpg)
+`;
+  const images = parseImagesMarkdown(md);
+  assertEquals(images.length, 2);
+
+  assertEquals(images[0].alt, "OTFB card");
+  assertEquals(images[0].timing, "before");
+  assertEquals(images[0].src, "url1.jpg");
+
+  assertEquals(images[1].alt, "OTFB card");
+  assertEquals(images[1].timing, "after");
+  assertEquals(images[1].src, "url2.jpg");
+});
+
+Deno.test("parseImagesMarkdown should keep parentheses in URLs", () => {
+  const md = `![X after](https://example.com/a_(b).png)`;
+  const images = parseImagesMarkdown(md);
+  assertEquals(images.length, 1);
+  assertEquals(images[0].src, "https://example.com/a_(b).png");
+  assertEquals(images[0].timing, "after");
+});
+
+Deno.test("parseImagesFromClipboard supports both HTML and Markdown", () => {
+  const html = `<img alt="1. Feature_1_before" src="https://example.com/1.jpg" />`;
+  const md = `![1. Feature_1_before](https://example.com/1.jpg)`;
+
+  const htmlImages = parseImagesFromClipboard(html);
+  const mdImages = parseImagesFromClipboard(md);
+
+  assertEquals(htmlImages.length, 1);
+  assertEquals(mdImages.length, 1);
+  assertEquals(htmlImages[0], mdImages[0]);
 });

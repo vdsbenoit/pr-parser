@@ -138,8 +138,9 @@ function parseFilename(filename: string): {
   const normalized = withoutPrefix.replace(/_/g, ' ');
   
   // Check for trailing "before" or "after" (case-insensitive)
-  const beforeMatch = normalized.match(/\s+before\s*$/i);
-  const afterMatch = normalized.match(/\s+after\s*$/i);
+  // Also supports common filename suffixes like "before.png" / "after.jpg"
+  const beforeMatch = normalized.match(/\s+before(?:\.[a-z0-9]+)?\s*$/i);
+  const afterMatch = normalized.match(/\s+after(?:\.[a-z0-9]+)?\s*$/i);
   
   let timing: 'before' | 'after' | 'standalone' = 'standalone';
   let content = normalized.trim();
@@ -147,11 +148,11 @@ function parseFilename(filename: string): {
   if (beforeMatch) {
     timing = 'before';
     // Remove the trailing "before" from content
-    content = normalized.replace(/\s+before\s*$/i, '').trim();
+    content = normalized.replace(/\s+before(?:\.[a-z0-9]+)?\s*$/i, '').trim();
   } else if (afterMatch) {
     timing = 'after';
     // Remove the trailing "after" from content
-    content = normalized.replace(/\s+after\s*$/i, '').trim();
+    content = normalized.replace(/\s+after(?:\.[a-z0-9]+)?\s*$/i, '').trim();
   }
   
   return {
@@ -159,6 +160,93 @@ function parseFilename(filename: string): {
     timing,
     formattedAlt: content
   };
+}
+
+function parseImagesMarkdown(markdownContent: string): ImageInfo[] {
+  const images: ImageInfo[] = [];
+  const content = markdownContent;
+
+  const readUntil = (startIndex: number, predicate: (char: string, index: number) => boolean): { value: string; endIndex: number } | null => {
+    let index = startIndex;
+    while (index < content.length) {
+      const char = content[index];
+      if (predicate(char, index)) {
+        return { value: content.slice(startIndex, index), endIndex: index };
+      }
+      index += 1;
+    }
+    return null;
+  };
+
+  let index = 0;
+  while (index < content.length) {
+    const start = content.indexOf('![', index);
+    if (start === -1) break;
+
+    const altStart = start + 2;
+    const altRead = readUntil(altStart, (char, idx) => char === ']' && content[idx - 1] !== '\\');
+    if (!altRead) {
+      break;
+    }
+    const originalAlt = altRead.value;
+    let cursor = altRead.endIndex + 1;
+
+    while (cursor < content.length && /\s/.test(content[cursor])) cursor += 1;
+    if (content[cursor] !== '(') {
+      index = start + 2;
+      continue;
+    }
+
+    const innerStart = cursor + 1;
+    let depth = 1;
+    cursor += 1;
+    while (cursor < content.length && depth > 0) {
+      const char = content[cursor];
+      if (char === '(') depth += 1;
+      else if (char === ')') depth -= 1;
+      cursor += 1;
+    }
+
+    if (depth !== 0) {
+      index = start + 2;
+      continue;
+    }
+
+    const inner = content.slice(innerStart, cursor - 1).trim();
+    let src = '';
+    if (inner.startsWith('<')) {
+      const close = inner.indexOf('>');
+      if (close > 1) {
+        src = inner.slice(1, close).trim();
+      }
+    } else {
+      src = inner.split(/\s+/)[0] ?? '';
+    }
+
+    if (originalAlt && src) {
+      const parsed = parseFilename(originalAlt);
+      images.push({
+        alt: parsed.formattedAlt,
+        src,
+        category: parsed.formattedAlt,
+        timing: parsed.timing,
+        order: parsed.order,
+      });
+    }
+
+    index = cursor;
+  }
+
+  images.sort((a, b) => a.order - b.order);
+  return images;
+}
+
+function parseImagesFromClipboard(clipboardContent: string): ImageInfo[] {
+  const trimmed = clipboardContent.trim();
+  if (trimmed.startsWith('<img')) {
+    return parseImages(trimmed);
+  }
+  return parseImagesMarkdown(trimmed);
 }
 
 /**
@@ -419,8 +507,11 @@ async function convertClipboard(): Promise<void> {
       return;
     }
     
-    // Check if clipboard contains image HTML or plain text (PR title)
-    if (!clipboardContent.trim().startsWith('<img')) {
+    const trimmedClipboard = clipboardContent.trim();
+    const isImageSnippet = trimmedClipboard.startsWith('<img') || trimmedClipboard.startsWith('![');
+
+    // Check if clipboard contains image snippet or plain text (PR title)
+    if (!isImageSnippet) {
       // PR title mode
       await showProgress("Parsing PR title...");
       const formattedTitle = parsePRTitle(clipboardContent);
@@ -444,10 +535,14 @@ async function convertClipboard(): Promise<void> {
     
     // Image table mode
     await showProgress("Parsing images...");
-    const images = parseImages(clipboardContent);
+    const images = parseImagesFromClipboard(clipboardContent);
     
     if (images.length === 0) {
-      await showDialog("No valid images found in clipboard content. Make sure your HTML contains img tags with alt attributes.", "No Images Found", 'error');
+      await showDialog(
+        "No valid images found in clipboard content. Make sure your clipboard starts with <img ...> tags or Markdown images like ![alt](src).",
+        "No Images Found",
+        'error'
+      );
       return;
     }
     
