@@ -261,9 +261,24 @@ function parseImagesFromClipboard(clipboardContent: string): ImageInfo[] {
 function parsePRTitle(title: string): string {
   // Trim whitespace
   const trimmed = title.trim();
-  
-  // Split into words
-  const words = trimmed.split(/\s+/);
+
+  const slashSlugMatch = trimmed.match(/^([A-Za-z]+)-(\d+)(?:-[^/]+)?\/(.+)$/);
+  const hyphenSlugMatch = trimmed.match(/^([A-Za-z]+)-(\d+)-(.+)$/);
+  let words: string[] = [];
+  const match = slashSlugMatch ?? hyphenSlugMatch;
+  if (match) {
+    const ticketPrefix = match[1];
+    const ticketNumber = match[2];
+    const featureSlug = match[3];
+    const featureWords = featureSlug
+      .replace(/[_-]+/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+    words = [ticketPrefix, ticketNumber, ...featureWords];
+  } else {
+    // Split into words
+    words = trimmed.split(/\s+/);
+  }
   
   if (words.length === 0) {
     return '';

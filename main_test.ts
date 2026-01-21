@@ -4,9 +4,24 @@ import { assertEquals } from "@std/assert";
 function parsePRTitle(title: string): string {
   // Trim whitespace
   const trimmed = title.trim();
-  
-  // Split into words
-  const words = trimmed.split(/\s+/);
+
+  const slashSlugMatch = trimmed.match(/^([A-Za-z]+)-(\d+)(?:-[^/]+)?\/(.+)$/);
+  const hyphenSlugMatch = trimmed.match(/^([A-Za-z]+)-(\d+)-(.+)$/);
+  let words: string[] = [];
+  const match = slashSlugMatch ?? hyphenSlugMatch;
+  if (match) {
+    const ticketPrefix = match[1];
+    const ticketNumber = match[2];
+    const featureSlug = match[3];
+    const featureWords = featureSlug
+      .replace(/[_-]+/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+    words = [ticketPrefix, ticketNumber, ...featureWords];
+  } else {
+    // Split into words
+    words = trimmed.split(/\s+/);
+  }
   
   if (words.length === 0) {
     return '';
@@ -113,6 +128,16 @@ Deno.test("parsePRTitle - whitespace trimming", () => {
 Deno.test("parsePRTitle - case handling in ticket ID", () => {
   const result = parsePRTitle("mb 80 feature name");
   assertEquals(result, "[MB-80] Feature name");
+});
+
+Deno.test("parsePRTitle - slash-separated slug format", () => {
+  const result = parsePRTitle("MB-95-preferred-times/remove-minimum-constraint-on-start-date");
+  assertEquals(result, "[MB-95] Remove minimum constraint on start date");
+});
+
+Deno.test("parsePRTitle - hyphen-only slug format", () => {
+  const result = parsePRTitle("MB-95-remove-minimum-constraint-on-start-date");
+  assertEquals(result, "[MB-95] Remove minimum constraint on start date");
 });
 
 Deno.test("parsePRTitle - part suffix at different positions", () => {
