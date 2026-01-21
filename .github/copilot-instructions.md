@@ -38,14 +38,14 @@
 - `deno task build:app` → compile then copy binary into the `.app` bundle. Run this before distributing the macOS app.
 
 ## Testing Expectations (`main_test.ts`)
-- Tests duplicate core helpers (`parseFilename`, `parseImages`, `formatCategoryTitle`) because `main.ts` does not export them. Update the copies when logic changes to keep coverage honest.
-- Use `deno test main_test.ts` for the suite; no other tests exist. Prefer extending this file when adding new parsing scenarios.
+- Tests import and exercise exported helpers from `main.ts`. Keep coverage focused on public helpers used by clipboard parsing.
+- Use `deno test main.test.ts` for the suite; no other tests exist. Prefer extending this file when adding new parsing scenarios.
 
 ## Coding Conventions
 - TypeScript targeting Deno; no npm dependencies. Stick with standard library imports via `jsr:@std/...`.
 - Keep async shell interactions wrapped with `Deno.Command`; provide friendly logs for CLI mode.
 - Preserve minimal logging; informative emoji outputs (`✅/❌`) are intentional for CLI UX.
-- When adding new functionality, favor pure helpers callable from tests, then invoke them from `convertClipboard()` to maintain coverage.
+- When adding new functionality, export helpers from `main.ts` and test them directly in `main.test.ts`.
 
 ## When Modifying
 - Changes affecting ordering, grouping, or HTML structure demand updates to both helper logic and tests.

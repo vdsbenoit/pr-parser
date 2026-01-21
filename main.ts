@@ -9,7 +9,7 @@ interface ImageInfo {
 /**
  * Checks if the app is running from the app bundle
  */
-function isRunningFromApp(): boolean {
+export function isRunningFromApp(): boolean {
   const execPath = Deno.execPath();
   return execPath.includes('.app/') || Deno.args.includes('--app-mode');
 }
@@ -17,7 +17,7 @@ function isRunningFromApp(): boolean {
 /**
  * Shows a macOS dialog using osascript
  */
-async function showDialog(message: string, title: string = "PR Parser", type: 'info' | 'error' = 'info'): Promise<void> {
+export async function showDialog(message: string, title: string = "PR Parser", type: 'info' | 'error' = 'info'): Promise<void> {
   if (!isRunningFromApp()) {
     console.log(`${type === 'error' ? '❌' : '✅'} ${title}: ${message}`);
     return;
@@ -38,7 +38,7 @@ async function showDialog(message: string, title: string = "PR Parser", type: 'i
 /**
  * Shows a progress notification
  */
-async function showProgress(message: string): Promise<void> {
+export async function showProgress(message: string): Promise<void> {
   if (!isRunningFromApp()) {
     console.log(message);
     return;
@@ -58,7 +58,7 @@ async function showProgress(message: string): Promise<void> {
 /**
  * Reads HTML content from the clipboard
  */
-async function readClipboard(): Promise<string> {
+export async function readClipboard(): Promise<string> {
   const process = new Deno.Command("pbpaste", {
     stdout: "piped",
     stderr: "piped"
@@ -76,7 +76,7 @@ async function readClipboard(): Promise<string> {
 /**
  * Writes content to the clipboard
  */
-async function writeClipboard(content: string): Promise<void> {
+export async function writeClipboard(content: string): Promise<void> {
   const process = new Deno.Command("pbcopy", {
     stdin: "piped",
     stdout: "piped",
@@ -98,7 +98,7 @@ async function writeClipboard(content: string): Promise<void> {
 /**
  * Simulates Cmd+V to paste content
  */
-async function pasteResult(): Promise<void> {
+export async function pasteResult(): Promise<void> {
   if (!isRunningFromApp()) {
     return;
   }
@@ -124,7 +124,7 @@ async function pasteResult(): Promise<void> {
  * - "5 feature whatever before" -> { order: 5, name: "feature whatever", timing: "before" }
  * - "5 feature whatever after" -> { order: 5, name: "feature whatever", timing: "after" }
  */
-function parseFilename(filename: string): {
+export function parseFilename(filename: string): {
   order: number;
   timing: 'before' | 'after' | 'standalone';
   formattedAlt: string;
@@ -162,7 +162,7 @@ function parseFilename(filename: string): {
   };
 }
 
-function parseImagesMarkdown(markdownContent: string): ImageInfo[] {
+export function parseImagesMarkdown(markdownContent: string): ImageInfo[] {
   const images: ImageInfo[] = [];
   const content = markdownContent;
 
@@ -241,7 +241,7 @@ function parseImagesMarkdown(markdownContent: string): ImageInfo[] {
   return images;
 }
 
-function parseImagesFromClipboard(clipboardContent: string): ImageInfo[] {
+export function parseImagesFromClipboard(clipboardContent: string): ImageInfo[] {
   const trimmed = clipboardContent.trim();
   if (trimmed.startsWith('<img')) {
     return parseImages(trimmed);
@@ -258,7 +258,7 @@ function parseImagesFromClipboard(clipboardContent: string): ImageInfo[] {
  * - "Noticket feature name" -> "[no-ticket] Feature name"
  * - "MB 123" -> "[MB-123]"
  */
-function parsePRTitle(title: string): string {
+export function parsePRTitle(title: string): string {
   // Trim whitespace
   const trimmed = title.trim();
 
@@ -349,7 +349,7 @@ function parsePRTitle(title: string): string {
 /**
  * Parses HTML content and extracts image information
  */
-function parseImages(htmlContent: string): ImageInfo[] {
+export function parseImages(htmlContent: string): ImageInfo[] {
   const imgRegex = /<img[^>]+>/gi;
   const images: ImageInfo[] = [];
   
@@ -388,7 +388,7 @@ function parseImages(htmlContent: string): ImageInfo[] {
 /**
  * Groups images by category and creates table rows, preserving order
  */
-function groupImagesByCategory(images: ImageInfo[]): { 
+export function groupImagesByCategory(images: ImageInfo[]): { 
   standaloneImages: ImageInfo[];
   pairedGroups: Map<string, { before?: ImageInfo; after?: ImageInfo; order: number }>;
 } {
@@ -416,7 +416,7 @@ function groupImagesByCategory(images: ImageInfo[]): {
 /**
  * Converts category name to proper title case
  */
-function formatCategoryTitle(category: string): string {
+export function formatCategoryTitle(category: string): string {
   return category
     .split('_')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -426,7 +426,7 @@ function formatCategoryTitle(category: string): string {
 /**
  * Generates HTML table from grouped images, preserving order
  */
-function generateTable(standaloneImages: ImageInfo[], pairedGroups: Map<string, { before?: ImageInfo; after?: ImageInfo; order: number }>): string {
+export function generateTable(standaloneImages: ImageInfo[], pairedGroups: Map<string, { before?: ImageInfo; after?: ImageInfo; order: number }>): string {
   let tableHtml = '<details><summary>Click to expand...</summary>\n<table>\n';
   
   // Convert paired groups to array and sort by order
@@ -512,7 +512,7 @@ function generateTable(standaloneImages: ImageInfo[], pairedGroups: Map<string, 
 /**
  * Main function that orchestrates the clipboard conversion
  */
-async function convertClipboard(): Promise<void> {
+export async function convertClipboard(): Promise<void> {
   try {
     await showProgress("Reading clipboard content...");
     const clipboardContent = await readClipboard();
