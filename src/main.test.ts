@@ -6,7 +6,7 @@ import {
   parseImagesFromClipboard,
   parseImagesMarkdown,
   parsePRTitle,
-} from "./main.ts";
+} from "./mod.ts";
 
 Deno.test("parsePRTitle - basic ticket with feature name", () => {
   const result = parsePRTitle("Mb 80 group by parking lot");
@@ -49,7 +49,9 @@ Deno.test("parsePRTitle - case handling in ticket ID", () => {
 });
 
 Deno.test("parsePRTitle - slash-separated slug format", () => {
-  const result = parsePRTitle("MB-95-preferred-times/remove-minimum-constraint-on-start-date");
+  const result = parsePRTitle(
+    "MB-95-preferred-times/remove-minimum-constraint-on-start-date",
+  );
   assertEquals(result, "[MB-95] Remove minimum constraint on start date");
 });
 
@@ -96,34 +98,37 @@ Deno.test("parseFilename - handles various filename formats", () => {
   assertEquals(result4.formattedAlt, "feature54");
 });
 
-Deno.test("parseImages should extract image information correctly with number prefixes", () => {
-  const htmlInput = `
+Deno.test(
+  "parseImages should extract image information correctly with number prefixes",
+  () => {
+    const htmlInput = `
     <img width="1170" height="2532" alt="1. Feature_1_before" src="https://github.com/user-attachments/assets/1.jpg" />
     <img width="1170" height="2532" alt="2.Feature 25_before" src="https://github.com/user-attachments/assets/2.jpg" />
     <img width="1170" height="2532" alt="3 Feature 32" src="https://github.com/user-attachments/assets/3.jpg" />
     <img width="1170" height="2532" alt="4feature54_after" src="https://github.com/user-attachments/assets/4.jpg" />
   `;
 
-  const images = parseImages(htmlInput);
+    const images = parseImages(htmlInput);
 
-  assertEquals(images.length, 4);
+    assertEquals(images.length, 4);
 
-  assertEquals(images[0].order, 1);
-  assertEquals(images[0].alt, "Feature 1");
-  assertEquals(images[0].timing, "before");
+    assertEquals(images[0].order, 1);
+    assertEquals(images[0].alt, "Feature 1");
+    assertEquals(images[0].timing, "before");
 
-  assertEquals(images[1].order, 2);
-  assertEquals(images[1].alt, "Feature 25");
-  assertEquals(images[1].timing, "before");
+    assertEquals(images[1].order, 2);
+    assertEquals(images[1].alt, "Feature 25");
+    assertEquals(images[1].timing, "before");
 
-  assertEquals(images[2].order, 3);
-  assertEquals(images[2].alt, "Feature 32");
-  assertEquals(images[2].timing, "standalone");
+    assertEquals(images[2].order, 3);
+    assertEquals(images[2].alt, "Feature 32");
+    assertEquals(images[2].timing, "standalone");
 
-  assertEquals(images[3].order, 4);
-  assertEquals(images[3].alt, "feature54");
-  assertEquals(images[3].timing, "after");
-});
+    assertEquals(images[3].order, 4);
+    assertEquals(images[3].alt, "feature54");
+    assertEquals(images[3].timing, "after");
+  },
+);
 
 Deno.test("formatCategoryTitle should format titles correctly", () => {
   assertEquals(formatCategoryTitle("Feature 1"), "Feature 1");
@@ -194,7 +199,8 @@ Deno.test("parseImagesMarkdown should keep parentheses in URLs", () => {
 });
 
 Deno.test("parseImagesFromClipboard supports both HTML and Markdown", () => {
-  const html = `<img alt="1. Feature_1_before" src="https://example.com/1.jpg" />`;
+  const html =
+    `<img alt="1. Feature_1_before" src="https://example.com/1.jpg" />`;
   const md = `![1. Feature_1_before](https://example.com/1.jpg)`;
 
   const htmlImages = parseImagesFromClipboard(html);

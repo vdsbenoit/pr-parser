@@ -49,7 +49,7 @@ Read [USAGE.md](USAGE.md) for more details.
 - Create before/after comparison tables
 - Support for standalone image displays
 - Automatic grouping by category
-- Simple CLI interface (main.ts)
+- Simple CLI interface (src/main.ts)
 - Extensible architecture for custom workflows
 
 ## Getting Started
@@ -74,7 +74,7 @@ cd pr-parser
 Copy plain text to clipboard (e.g., "Mb 80 feature name"), then run:
 
 ```sh
-deno run --allow-run main.ts
+deno run --allow-run src/main.ts
 ```
 
 The formatted title (e.g., "[MB-80] Feature name") will be copied back to your clipboard.
@@ -91,7 +91,7 @@ Read [USAGE.md](USAGE.md) for more details.
 Copy HTML with `<img>` tags to clipboard, then run:
 
 ```sh
-deno run --allow-run main.ts
+deno run --allow-run src/main.ts
 ```
 
 An organized HTML table will be copied back to your clipboard.  
@@ -115,9 +115,10 @@ deno task build:install
 ```
 
 ## Project Structure
-- `main.ts` - Entry point for the CLI
-- `main_test.ts` - Test suite
-- `app/` - Application logic and modules
+- `src/main.ts` - Entry point for the CLI
+- `src/main.test.ts` - Test suite
+- `src/` - Library modules (clipboard, parsing, table generation)
+- `app/` - macOS app bundle
 - `dist/` - The build output directory
 - `deno.json` - Deno configuration
 

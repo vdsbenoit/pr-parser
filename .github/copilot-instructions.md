@@ -1,13 +1,13 @@
 # Copilot Instructions
 
 ## Project Snapshot
-- This repo is a single-file Deno CLI (`main.ts`) with dual functionality:
+- This repo is a Deno CLI (`src/main.ts`) with dual functionality:
   1. **PR Title Parsing**: Converts plain text into formatted PR titles with ticket identifiers and part suffixes
   2. **Screenshot Tables**: Converts HTML clipboard contents of `<img>` tags into grouped comparison tables
 - macOS packaging lives under `app/PRParser.app`; `deno compile` drops the binary in `app/PRParser.app/script` for a double-clickable app.
 - There are no external services; functionality hinges on local shell utilities (`pbpaste`, `pbcopy`, `osascript`).
 
-## Clipboard Entry Point (`main.ts`)
+## Clipboard Entry Point (`src/main.ts`)
 - `convertClipboard()` is the main entry point that routes to either PR title parsing or screenshot table generation based on clipboard content
 - If clipboard doesn't start with `<img`, it triggers PR title parsing flow
 - If clipboard starts with `<img`, it triggers screenshot table flow
@@ -19,7 +19,7 @@
 - Feature name: Remaining words with first letter capitalized
 - All whitespace is normalized and trimmed
 
-## Clipboard ➜ Table Flow (`main.ts`)
+## Clipboard ➜ Table Flow (`src/main.ts`)
 - `convertClipboard()` is the entry point: show notification → read clipboard HTML → parse images → group → generate table → write back to clipboard → surface results.
 - `parseFilename()` extracts ordering, feature numbers, and timing (`before|after|standalone`) from image `alt` text. Keep its regex semantics in sync with tests.
 - `parseImages()` walks `<img>` tags, normalizes `alt` text via `parseFilename()`, and sorts by the numeric prefix. Maintain strict attribute parsing; missing `alt` or `src` should skip entries.
@@ -37,15 +37,15 @@
 - `deno task build` → produce CLI binary in `dist/pr-parser`.
 - `deno task build:app` → compile then copy binary into the `.app` bundle. Run this before distributing the macOS app.
 
-## Testing Expectations (`main_test.ts`)
-- Tests import and exercise exported helpers from `main.ts`. Keep coverage focused on public helpers used by clipboard parsing.
-- Use `deno test main.test.ts` for the suite; no other tests exist. Prefer extending this file when adding new parsing scenarios.
+## Testing Expectations (`src/main.test.ts`)
+- Tests import and exercise exported helpers from `src/mod.ts`. Keep coverage focused on public helpers used by clipboard parsing.
+- Use `deno test` for the suite; prefer extending `src/main.test.ts` when adding new parsing scenarios.
 
 ## Coding Conventions
 - TypeScript targeting Deno; no npm dependencies. Stick with standard library imports via `jsr:@std/...`.
 - Keep async shell interactions wrapped with `Deno.Command`; provide friendly logs for CLI mode.
 - Preserve minimal logging; informative emoji outputs (`✅/❌`) are intentional for CLI UX.
-- When adding new functionality, export helpers from `main.ts` and test them directly in `main.test.ts`.
+- When adding new functionality, export helpers from `src/mod.ts` and test them directly in `src/main.test.ts`.
 
 ## When Modifying
 - Changes affecting ordering, grouping, or HTML structure demand updates to both helper logic and tests.

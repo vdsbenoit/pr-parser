@@ -270,7 +270,7 @@ deno task dev
 deno task start
 
 # Or directly
-deno run --allow-run main.ts
+deno run --allow-run src/main.ts
 ```
 
 ### Build Standalone Binary
